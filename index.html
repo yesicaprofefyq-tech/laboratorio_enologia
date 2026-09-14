@@ -280,16 +280,16 @@
     let currentSelectedStudent = null;
 
     // Cargar la lista de correos al iniciar la app
-   async function loadStudentEmails() {
+ async function loadStudentEmails() {
   const select = document.getElementById('studentEmail');
-  const courseId = "ODc3MDA3ODIzOTMw"; // Tu ID de curso extraído de la URL
+  const courseId = "ODc3MDA3ODIzOTMw";
 
   try {
     const response = await fetch(`${WEBHOOK_URL}?action=GET_STUDENTS&courseId=${courseId}`);
     const data = await response.json();
 
     if (Array.isArray(data) && data.length > 0) {
-      select.innerHTML = '<option value="">-- Selecciona tu correo --</option>' +
+      select.innerHTML = '<option value="">-- Selecciona tu correo (@cacanarias.org) --</option>' +
         data.map(email => `<option value="${email}">${email}</option>`).join('');
     } else {
       enableManualEmailInput();
@@ -302,8 +302,8 @@
 function enableManualEmailInput() {
   const container = document.getElementById('studentEmail').parentElement;
   container.innerHTML = `
-    <label class="block text-xs font-semibold text-slate-700 mb-1">Email ULL *</label>
-    <input type="email" id="studentEmail" required class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-rose-800" placeholder="usuario@ull.edu.es">
+    <label class="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
+    <input type="email" id="studentEmail" required class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-rose-800" placeholder="usuario@cacanarias.org">
   `;
 }
 
