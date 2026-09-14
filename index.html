@@ -291,12 +291,12 @@ async function loadStudentEmails() {
     const students = await response.json();
 
     if (Array.isArray(students) && students.length > 0) {
-      // Ordenar alfabéticamente por nombre
+      // Ordenar alfabéticamente por Nombre
       students.sort((a, b) => a.name.localeCompare(b.name));
 
-      // El texto visible es el Nombre, pero el 'value' que se envía al servidor sigue siendo el email/ID
+      // Solo se renderiza el nombre en la interfaz gráfica
       select.innerHTML = '<option value="">-- Selecciona tu Nombre y Apellido --</option>' +
-        students.map(st => `<option value="${st.email}">${st.name}</option>`).join('');
+        students.map(st => `<option value="${st.id}">${st.name}</option>`).join('');
     } else {
       enableManualEmailInput();
     }
