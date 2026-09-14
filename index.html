@@ -282,14 +282,14 @@
     // Cargar la lista de correos al iniciar la app
  async function loadStudentEmails() {
   const select = document.getElementById('studentEmail');
-  const courseId = "ODc3MDA3ODIzOTMw";
+  const courseId = "877007823930"; // ID numérico exacto sin letras
 
   try {
     const response = await fetch(`${WEBHOOK_URL}?action=GET_STUDENTS&courseId=${courseId}`);
     const data = await response.json();
 
     if (Array.isArray(data) && data.length > 0) {
-      select.innerHTML = '<option value="">-- Selecciona tu correo (@cacanarias.org) --</option>' +
+      select.innerHTML = '<option value="">-- Selecciona tu correo --</option>' +
         data.map(email => `<option value="${email}">${email}</option>`).join('');
     } else {
       enableManualEmailInput();
