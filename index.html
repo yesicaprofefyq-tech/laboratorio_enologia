@@ -284,34 +284,25 @@ async function loadStudentEmails() {
   const select = document.getElementById('studentEmail');
   const courseId = "ODc3MDA3ODIzOTMw";
 
-  // Cambiar el texto del campo visualmente
-  const label = select.parentElement.querySelector('label');
-  if (label) label.textContent = "Alumno / Nombre completo *";
-
-  select.innerHTML = '<option value="">Cargando alumnos...</option>';
+  select.innerHTML = '<option value="">Cargando lista de alumnos...</option>';
 
   try {
     const response = await fetch(`${WEBHOOK_URL}?action=GET_STUDENTS&courseId=${courseId}`);
     const students = await response.json();
 
     if (Array.isArray(students) && students.length > 0) {
-      // Ordenar alfabéticamente
-      students.sort((a, b) => {
-        const nameA = typeof a === 'object' ? (a.name || '') : String(a);
-        const nameB = typeof b === 'object' ? (b.name || '') : String(b);
-        return nameA.localeCompare(nameB);
-      });
+      // Ajustar la etiqueta visible en pantalla
+      const label = select.parentElement.querySelector('label');
+      if (label) label.textContent = "Alumno / Nombre completo *";
 
-      let optionsHTML = '<option value="">-- Selecciona tu Nombre --</option>';
+      // Ordenar alfabéticamente por Nombre
+      students.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Construir el selector: texto visible = Nombre, valor oculto = userId
+      let optionsHTML = '<option value="">-- Selecciona tu Nombre y Apellido --</option>';
 
       students.forEach(st => {
-        if (typeof st === 'object' && st !== null) {
-          // st.name muestra "Tomás Bruno Castañeda"
-          // st.id guarda el identificador privado
-          optionsHTML += `<option value="${st.id || st.email}">${st.name}</option>`;
-        } else {
-          optionsHTML += `<option value="${st}">${st}</option>`;
-        }
+        optionsHTML += `<option value="${st.id}">${st.name}</option>`;
       });
 
       select.innerHTML = optionsHTML;
@@ -319,16 +310,16 @@ async function loadStudentEmails() {
       enableManualEmailInput();
     }
   } catch (err) {
-    console.error("Error al cargar la lista de alumnos:", err);
+    console.error("Error al obtener la lista de alumnos:", err);
     enableManualEmailInput();
   }
 }
 
-function enableManualEmailInput() {
+    function enableManualEmailInput() {
   const container = document.getElementById('studentEmail').parentElement;
   container.innerHTML = `
-    <label class="block text-xs font-semibold text-slate-700 mb-1">Usuario / Email corporativo *</label>
-    <input type="email" id="studentEmail" required class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-rose-800" placeholder="usuario@cacanarias.org">
+    <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo / ID de Alumno *</label>
+    <input type="text" id="studentEmail" required class="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-rose-800" placeholder="Nombre y Apellidos o ID">
   `;
 }
 
