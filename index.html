@@ -1,51 +1,477 @@
-function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  
-  if (data.action === "GRADE_STUDENT") {
-    // 1. Guardar en Google Sheets
-    sheet.appendRow([
-      new Date(),
-      data.email,
-      "Práctica " + data.practice,
-      data.finalGrade,
-      "EVALUADO"
-    ]);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnoEval Pro - Sistema de Evaluación Enológica</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    .hidden-view { display: none !important; }
+  </style>
+</head>
+<body class="bg-slate-100 font-sans min-h-screen pb-12">
 
-    // 2. Transfere la nota a Google Classroom
-    try {
-      updateClassroomGrade(data.courseId, data.courseWorkId, data.email, data.finalGrade);
-    } catch (err) {
-      Logger.log("Error en Classroom: " + err.toString());
+  <header class="bg-wine-900 text-white shadow-lg sticky top-0 z-50" style="background-color: #4a1525;">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-wine-glass-empty text-2xl text-rose-300"></i>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">EnoEval Pro</h1>
+          <p class="text-xs text-rose-200">Laboratorio de Enología & Analytics</p>
+        </div>
+      </div>
+      
+      <div class="flex bg-slate-900 p-1 rounded-lg border border-rose-900/40">
+        <button id="btnRoleStudent" onclick="switchRole('student')" class="px-4 py-1.5 text-xs font-semibold rounded-md transition-all bg-rose-700 text-white shadow">
+          <i class="fa-solid fa-user-graduate mr-1.5"></i>Vista Alumnado
+        </button>
+        <button id="btnRoleTeacher" onclick="switchRole('teacher')" class="px-4 py-1.5 text-xs font-semibold rounded-md transition-all text-slate-300 hover:text-white">
+          <i class="fa-solid fa-user-tie mr-1.5"></i>Panel Docente
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 mt-6">
+
+    <section id="viewStudent" class="space-y-6">
+      <div class="glass-card rounded-xl p-6 shadow-sm border border-slate-200">
+        <h2 class="text-lg font-bold text-slate-800 border-b pb-3 mb-4 flex items-center">
+          <i class="fa-solid fa-file-pen mr-2 text-rose-700"></i>Registro de Datos del Análisis
+        </h2>
+
+        <form id="studentForm" onsubmit="handleStudentSubmit(event)" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Alumno/a (Correo Institucional)</label>
+              <select id="studentEmail" required class="w-full text-sm border-slate-300 rounded-lg p-2.5 bg-slate-50 border focus:ring-2 focus:ring-rose-500">
+                <option value="">-- Selecciona tu nombre --</option>
+                <option value="tomas@cacanarias.org">Alumno 1 (tomas@cacanarias.org)</option>
+                <option value="alumno2@cacanarias.org">Alumno 2 (alumno2@cacanarias.org)</option>
+                <option value="alumno3@cacanarias.org">Alumno 3 (alumno3@cacanarias.org)</option>
+                <option value="alumno4@cacanarias.org">Alumno 4 (alumno4@cacanarias.org)</option>
+                <option value="alumno5@cacanarias.org">Alumno 5 (alumno5@cacanarias.org)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Puesto de Laboratorio</label>
+              <input type="number" id="studentDesk" min="1" max="20" required placeholder="Ej. 4" class="w-full text-sm border-slate-300 rounded-lg p-2.5 bg-slate-50 border focus:ring-2 focus:ring-rose-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Práctica</label>
+              <select id="studentPractice" onchange="togglePracticeFields()" required class="w-full text-sm border-slate-300 rounded-lg p-2.5 bg-slate-50 border focus:ring-2 focus:ring-rose-500">
+                <option value="1">Práctica 1: Acidez Total y pH</option>
+                <option value="2">Práctica 2: Acidez Volátil</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Identificación del Vino</label>
+              <input type="text" id="studentWine" required placeholder="Ej. Vino rosado ECAT-20, C-16" class="w-full text-sm border-slate-300 rounded-lg p-2.5 bg-slate-50 border focus:ring-2 focus:ring-rose-500">
+            </div>
+          </div>
+
+          <div id="p1Fields" class="bg-rose-50/50 p-4 rounded-lg border border-rose-100 space-y-3">
+            <h3 class="text-xs font-bold text-rose-900 uppercase tracking-wider">Resultados de Volumetría / Medición (Práctica 1)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-xs text-slate-600 mb-1">Gasto Bureta NaOH (mL)</label>
+                <input type="number" step="0.01" id="valVolume" placeholder="0.00" class="w-full text-sm rounded-md p-2 border border-slate-300 p1-req">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1">pH Medido</label>
+                <input type="number" step="0.01" id="valpH" placeholder="3.50" class="w-full text-sm rounded-md p-2 border border-slate-300 p1-req">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1">Acidez Tartárica (g H₂T/L)</label>
+                <input type="number" step="0.01" id="valMathResult" placeholder="0.00" class="w-full text-sm rounded-md p-2 border border-slate-300 p1-req">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1">Acidez Sulfúrica (g H₂SO₄/L)</label>
+                <input type="number" step="0.01" id="valSulfuricResult" placeholder="0.00" class="w-full text-sm rounded-md p-2 border border-slate-300 p1-req">
+              </div>
+            </div>
+          </div>
+
+          <div id="p2Fields" class="hidden-view bg-purple-50/50 p-4 rounded-lg border border-purple-100 space-y-4">
+            <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Fase 1: Medidas y Cálculos de Acidez Volátil</h3>
+            
+            <div class="bg-white p-3 rounded-lg border border-purple-200 space-y-2">
+              <p class="text-xs font-bold text-purple-800">1. Método Duclaux-Gayón</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">V_NaOH (mL)</label>
+                  <input type="number" step="0.01" id="vNaOH_Duclaux" placeholder="0.00" class="w-full text-sm rounded-md p-2 border border-slate-300 p2-req">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">Acidez Volátil Calculada (g AcOH/L)</label>
+                  <input type="number" step="0.001" id="acidez_Duclaux" placeholder="0.000" class="w-full text-sm rounded-md p-2 border border-slate-300 p2-req">
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-3 rounded-lg border border-purple-200 space-y-2">
+              <p class="text-xs font-bold text-purple-800">2. Método García Tena</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">V_NaOH (mL)</label>
+                  <input type="number" step="0.01" id="vNaOH_Garcia" placeholder="0.00" class="w-full text-sm rounded-md p-2 border border-slate-300 p2-req">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">Acidez Volátil Calculada (g AcOH/L)</label>
+                  <input type="number" step="0.001" id="acidez_Garcia" placeholder="0.000" class="w-full text-sm rounded-md p-2 border border-slate-300 p2-req">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+            <label class="block text-xs font-bold text-slate-700 uppercase">Evidencia Fotográfica del Montaje / Viraje</label>
+            <input type="file" id="studentPhoto" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100">
+          </div>
+
+          <button type="submit" id="btnSubmitStudent" class="w-full bg-rose-700 hover:bg-rose-800 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all flex items-center justify-center">
+            <i class="fa-solid fa-paper-plane mr-2"></i>Enviar Informe al Laboratorio
+          </button>
+        </form>
+      </div>
+
+      <div id="studentStatusBox" class="hidden-view glass-card rounded-xl p-6 text-center border border-emerald-200 bg-emerald-50/50">
+        <i class="fa-solid fa-circle-check text-4xl text-emerald-600 mb-2"></i>
+        <h3 class="text-lg font-bold text-emerald-900">¡Informe Enviado Correctamente!</h3>
+        <p class="text-sm text-emerald-700 mt-1">Acércate a la mesa del profesor para la defensa oral.</p>
+        <button onclick="resetStudentForm()" class="mt-4 text-xs font-bold text-emerald-800 underline">Enviar otra muestra</button>
+      </div>
+    </section>
+
+    <section id="viewTeacher" class="hidden-view space-y-6">
+      <div id="teacherAuth" class="glass-card rounded-xl p-8 max-w-md mx-auto text-center border border-slate-200 shadow-sm">
+        <i class="fa-solid fa-lock text-3xl text-slate-400 mb-3"></i>
+        <h2 class="text-base font-bold text-slate-800">Acceso Docente Requerido</h2>
+        <input type="password" id="teacherPin" placeholder="Introduce el PIN de acceso" class="w-full text-center text-lg tracking-widest border border-slate-300 rounded-lg p-2.5 mb-4 focus:ring-2 focus:ring-rose-500">
+        <button onclick="unlockTeacher()" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-lg text-sm hover:bg-slate-800">Acceder</button>
+      </div>
+
+      <div id="teacherContent" class="hidden-view space-y-6">
+        <div class="glass-card rounded-xl p-4 border border-slate-200 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-plug text-slate-500"></i>
+            <div>
+              <p class="text-xs font-bold text-slate-700">Estado Webhook Apps Script</p>
+              <p id="webhookStatusText" class="text-xs text-emerald-600 font-semibold">Conectado y Operativo</p>
+            </div>
+          </div>
+          <button onclick="fetchPendingSubmissions()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300">
+            <i class="fa-solid fa-rotate mr-1"></i>Actualizar Entregas
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="glass-card rounded-xl p-4 border border-slate-200 md:col-span-1">
+            <h3 class="text-sm font-bold text-slate-800 border-b pb-2 mb-3 flex justify-between items-center">
+              <span>Pendientes en Lab</span>
+              <span id="pendingBadge" class="bg-rose-100 text-rose-800 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+            </h3>
+            <div id="pendingList" class="space-y-2 max-h-96 overflow-y-auto">
+              <p class="text-xs text-slate-400 text-center py-4">No hay entregas recibidas</p>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-6 border border-slate-200 md:col-span-2 space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 border-b pb-2 flex items-center">
+              <i class="fa-solid fa-microscope mr-2 text-rose-700"></i>Evaluación & Examen Oral
+            </h3>
+
+            <div id="noStudentSelected" class="text-center py-12 text-slate-400">
+              <i class="fa-solid fa-hand-pointer text-2xl mb-2"></i>
+              <p class="text-xs">Selecciona un alumno de la lista izquierda para evaluar</p>
+            </div>
+
+            <div id="evaluationForm" class="hidden-view space-y-4">
+              <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1">
+                <p><strong>Alumno:</strong> <span id="evalEmail" class="text-slate-800"></span></p>
+                <p><strong>Puesto:</strong> <span id="evalDesk"></span> | <strong>Muestra:</strong> <span id="evalWine"></span> | <strong>Práctica:</strong> <span id="evalPractice"></span></p>
+                
+                <div id="evalDataP1" class="space-y-1 pt-1">
+                  <p><strong>Gasto Bureta:</strong> <span id="evalVolume" class="font-bold text-slate-800"></span> mL | <strong>pH:</strong> <span id="evalpH" class="font-bold text-slate-800"></span></p>
+                  <p><strong>Declarado:</strong> Tartárico: <span id="evalMath" class="font-bold text-blue-700"></span> g/L | Sulfúrico: <span id="evalSulfuric" class="font-bold text-blue-700"></span> g/L</p>
+                  <div id="evalP1Audit" class="p-2 rounded border text-[11px] mt-1 font-semibold"></div>
+                </div>
+                
+                <div id="evalDataP2" class="space-y-1 pt-1 hidden-view">
+                  <p><strong>Duclaux-Gayón:</strong> V = <span id="evalV_Duclaux" class="font-bold text-purple-700"></span> mL | Declarado: <span id="evalDuclaux" class="font-bold text-purple-700"></span> g AcOH/L</p>
+                  <p><strong>García Tena:</strong> V = <span id="evalV_Garcia" class="font-bold text-purple-700"></span> mL | Declarado: <span id="evalGarcia" class="font-bold text-purple-700"></span> g AcOH/L</p>
+                  <div id="evalP2Audit" class="p-2 rounded border text-[11px] mt-1 font-semibold"></div>
+                </div>
+              </div>
+
+              <!-- RÚBRICA P1 -->
+              <div id="rubricP1" class="space-y-4">
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                  <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">1. Medidas y Cálculos (3.0 pts)</h4>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-700 mb-1">Cálculos (0 - 1.5 pts)</label>
+                      <input type="number" id="p1_scoreCalc" min="0" max="1.5" step="0.1" value="1.5" onchange="calculateFinalGrade()" class="w-full text-sm border-slate-300 rounded-lg p-2 border">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-700 mb-1">Precisión (0 - 1.5 pts)</label>
+                      <input type="number" id="p1_scorePrecision" min="0" max="1.5" step="0.1" value="1.5" onchange="calculateFinalGrade()" class="w-full text-sm border-slate-300 rounded-lg p-2 border">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-amber-50 p-4 rounded-lg border border-amber-200 space-y-3">
+                  <h4 class="text-xs font-bold text-amber-900 uppercase">2. Defensa Oral (5.5 pts)</h4>
+                  <div>
+                    <label class="block text-xs font-bold text-amber-900 mb-1">Nota Defensa Oral (0 - 5.5 pts)</label>
+                    <input type="number" id="p1_oralScore" min="0" max="5.5" step="0.25" value="5.0" onchange="calculateFinalGrade()" class="w-full text-sm border-amber-300 rounded-lg p-2 border bg-white">
+                  </div>
+                </div>
+              </div>
+
+              <!-- RÚBRICA P2 -->
+              <div id="rubricP2" class="hidden-view space-y-4">
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                  <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Fase 1: Entrada del Alumno (3.5 pts)</h4>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-700 mb-1">Cálculos (0 - 3.0 pts)</label>
+                      <input type="number" id="p2_scoreCalc" min="0" max="3.0" step="0.1" value="3.0" onchange="calculateFinalGrade()" class="w-full text-sm border-slate-300 rounded-lg p-2 border">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-700 mb-1">Fotografía (0 - 0.5 pts)</label>
+                      <input type="number" id="p2_scorePhoto" min="0" max="0.5" step="0.1" value="0.5" onchange="calculateFinalGrade()" class="w-full text-sm border-slate-300 rounded-lg p-2 border">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-slate-900 text-white p-4 rounded-lg flex justify-between items-center">
+                <div>
+                  <p class="text-xs text-slate-400">Calificación Final Acumulada</p>
+                  <p id="finalGradeDisplay" class="text-2xl font-bold text-rose-400">10.0 / 10</p>
+                </div>
+                <button onclick="submitTeacherGrade()" class="bg-rose-700 hover:bg-rose-800 text-white font-bold px-4 py-2 rounded-lg text-xs shadow flex items-center">
+                  <i class="fa-solid fa-cloud-arrow-up mr-2"></i>Validar y Enviar a Classroom
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let WEBHOOK_URL = localStorage.getItem('eno_webhook') || "https://script.google.com/macros/s/AKfycbwuQCNonSCdavHMZF-vNfkdkZCUpPKxH4xZt738tkFMwmi2sb0wU8fBjj4V3o0WL1yXkg/exec";
+    let pendingData = [];
+    let currentSelectedStudent = null;
+
+    function togglePracticeFields() {
+      const practice = document.getElementById('studentPractice').value;
+      const p1Box = document.getElementById('p1Fields');
+      const p2Box = document.getElementById('p2Fields');
+
+      document.querySelectorAll('.p1-req').forEach(el => el.required = (practice === "1"));
+      document.querySelectorAll('.p2-req').forEach(el => el.required = (practice === "2"));
+
+      if (practice === "1") {
+        p1Box.classList.remove('hidden-view');
+        p2Box.classList.add('hidden-view');
+      } else {
+        p2Box.classList.remove('hidden-view');
+        p1Box.classList.add('hidden-view');
+      }
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "SUCCESS" }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
+    function switchRole(role) {
+      const vStud = document.getElementById('viewStudent');
+      const vTeach = document.getElementById('viewTeacher');
+      if (role === 'student') {
+        vStud.classList.remove('hidden-view');
+        vTeach.classList.add('hidden-view');
+      } else {
+        vStud.classList.add('hidden-view');
+        vTeach.classList.remove('hidden-view');
+      }
+    }
 
-function updateClassroomGrade(courseId, courseWorkId, studentEmail, grade) {
-  // Buscar entrega del alumno mediante la API de Classroom
-  var submissions = Classroom.Courses.CourseWork.StudentSubmissions.list(courseId, courseWorkId, {
-    userId: studentEmail
-  }).studentSubmissions;
+    async function handleStudentSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitStudent');
+      btn.disabled = true;
 
-  if (submissions && submissions.length > 0) {
-    var submission = submissions[0];
-    var studentSubmissionId = submission.id;
+      const practice = document.getElementById('studentPractice').value;
+      const payload = {
+        action: "SUBMIT_DRAFT",
+        email: document.getElementById('studentEmail').value,
+        desk: document.getElementById('studentDesk').value,
+        practice: practice,
+        wine: document.getElementById('studentWine').value
+      };
 
-    // Actualizar la nota asignada
-    var resource = {
-      assignedGrade: parseFloat(grade),
-      draftGrade: parseFloat(grade)
-    };
+      if (practice === "1") {
+        payload.valVolume = document.getElementById('valVolume').value;
+        payload.valpH = document.getElementById('valpH').value;
+        payload.mathScore = document.getElementById('valMathResult').value;
+        payload.sulfuricScore = document.getElementById('valSulfuricResult').value || 0;
+      } else {
+        payload.vNaOH_Duclaux = document.getElementById('vNaOH_Duclaux').value;
+        payload.acidez_Duclaux = document.getElementById('acidez_Duclaux').value;
+        payload.vNaOH_Garcia = document.getElementById('vNaOH_Garcia').value;
+        payload.acidez_Garcia = document.getElementById('acidez_Garcia').value;
+      }
 
-    Classroom.Courses.CourseWork.StudentSubmissions.patch(
-      resource,
-      courseId,
-      courseWorkId,
-      studentSubmissionId,
-      { updateMask: "assignedGrade,draftGrade" }
-    );
-  }
-}
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        document.getElementById('studentForm').classList.add('hidden-view');
+        document.getElementById('studentStatusBox').classList.remove('hidden-view');
+      } catch (err) {
+        alert("Error al enviar informe: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function resetStudentForm() {
+      document.getElementById('studentForm').reset();
+      togglePracticeFields();
+      document.getElementById('studentForm').classList.remove('hidden-view');
+      document.getElementById('studentStatusBox').classList.add('hidden-view');
+    }
+
+    function unlockTeacher() {
+      if (document.getElementById('teacherPin').value === "0628") {
+        document.getElementById('teacherAuth').classList.add('hidden-view');
+        document.getElementById('teacherContent').classList.remove('hidden-view');
+        fetchPendingSubmissions();
+      } else {
+        alert("PIN Incorrecto");
+      }
+    }
+
+    async function fetchPendingSubmissions() {
+      try {
+        const res = await fetch(WEBHOOK_URL);
+        const data = await res.json();
+        pendingData = data.filter(item => item.status === "PENDIENTE");
+        renderPendingList();
+      } catch (err) {
+        console.log("Servicio backend no disponible.");
+      }
+    }
+
+    function renderPendingList() {
+      const list = document.getElementById('pendingList');
+      document.getElementById('pendingBadge').innerText = pendingData.length;
+
+      if (pendingData.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">No hay entregas pendientes</p>`;
+        return;
+      }
+
+      list.innerHTML = pendingData.map((item, index) => `
+        <div onclick="selectStudentForEval(${index})" class="p-3 bg-white rounded-lg border border-slate-200 hover:border-rose-400 cursor-pointer transition-all shadow-sm">
+          <p class="text-xs font-bold text-slate-800">${item.email}</p>
+          <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+            <span>Puesto ${item.desk}</span>
+            <span class="font-bold text-rose-700">Práctica ${item.practice}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectStudentForEval(index) {
+      currentSelectedStudent = pendingData[index];
+      document.getElementById('noStudentSelected').classList.add('hidden-view');
+      document.getElementById('evaluationForm').classList.remove('hidden-view');
+
+      document.getElementById('evalEmail').innerText = currentSelectedStudent.email;
+      document.getElementById('evalDesk').innerText = currentSelectedStudent.desk;
+      document.getElementById('evalWine').innerText = currentSelectedStudent.wine;
+      document.getElementById('evalPractice').innerText = `Práctica ${currentSelectedStudent.practice}`;
+
+      const isP2 = (String(currentSelectedStudent.practice) === "2");
+      if (isP2) {
+        document.getElementById('evalDataP1').classList.add('hidden-view');
+        document.getElementById('evalDataP2').classList.remove('hidden-view');
+        document.getElementById('rubricP1').classList.add('hidden-view');
+        document.getElementById('rubricP2').classList.remove('hidden-view');
+      } else {
+        document.getElementById('evalDataP1').classList.remove('hidden-view');
+        document.getElementById('evalDataP2').classList.add('hidden-view');
+        document.getElementById('rubricP1').classList.remove('hidden-view');
+        document.getElementById('rubricP2').classList.add('hidden-view');
+      }
+
+      calculateFinalGrade();
+    }
+
+    function calculateFinalGrade() {
+      if (!currentSelectedStudent) return "10.0";
+      const isP2 = (String(currentSelectedStudent.practice) === "2");
+      let finalGrade = 0;
+
+      if (isP2) {
+        const scoreCalc = parseFloat(document.getElementById('p2_scoreCalc').value) || 0;
+        const scorePhoto = parseFloat(document.getElementById('p2_scorePhoto').value) || 0;
+        finalGrade = scoreCalc + scorePhoto;
+      } else {
+        const scoreCalc = parseFloat(document.getElementById('p1_scoreCalc').value) || 0;
+        const scorePrecision = parseFloat(document.getElementById('p1_scorePrecision').value) || 0;
+        const oralScore = parseFloat(document.getElementById('p1_oralScore').value) || 0;
+        finalGrade = scoreCalc + scorePrecision + oralScore;
+      }
+
+      const formatted = Math.min(10, Math.max(0, finalGrade)).toFixed(1);
+      document.getElementById('finalGradeDisplay').innerText = `${formatted} / 10`;
+      return formatted;
+    }
+
+    async function submitTeacherGrade() {
+      if (!currentSelectedStudent) return;
+      const finalGrade = calculateFinalGrade();
+
+      const payload = {
+        action: "GRADE_STUDENT",
+        email: currentSelectedStudent.email,
+        practice: currentSelectedStudent.practice,
+        finalGrade: finalGrade,
+        // PARÁMETROS DE CLASSROOM (Reemplazar con tus IDs reales del curso si los utilizas de forma fija)
+        courseId: "ID_DEL_CURSO",
+        courseWorkId: currentSelectedStudent.practice === "1" ? "ID_TAREA_P1" : "ID_TAREA_P2"
+      };
+
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        alert(`Calificación de ${currentSelectedStudent.email} (${finalGrade}) enviada correctamente a Google Sheets y Google Classroom.`);
+        document.getElementById('evaluationForm').classList.add('hidden-view');
+        document.getElementById('noStudentSelected').classList.remove('hidden-view');
+        fetchPendingSubmissions();
+      } catch (err) {
+        alert("Error al sincronizar con Classroom: " + err.message);
+      }
+    }
+
+    togglePracticeFields();
+  </script>
+</body>
+</html>
