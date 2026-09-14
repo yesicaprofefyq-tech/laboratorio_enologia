@@ -284,23 +284,34 @@ async function loadStudentEmails() {
   const select = document.getElementById('studentEmail');
   const courseId = "ODc3MDA3ODIzOTMw";
 
-  select.innerHTML = '<option value="">Cargando lista de alumnos...</option>';
+  // Actualizar la etiqueta visible
+  const label = select.parentElement.querySelector('label');
+  if (label) label.textContent = "Alumno / Nombre completo *";
+
+  select.innerHTML = '<option value="">Cargando alumnos...</option>';
 
   try {
     const response = await fetch(`${WEBHOOK_URL}?action=GET_STUDENTS&courseId=${courseId}`);
     const students = await response.json();
 
     if (Array.isArray(students) && students.length > 0) {
-      // Ordenar alfabéticamente por Nombre
+      // Ordenar alfabéticamente por nombre
       students.sort((a, b) => a.name.localeCompare(b.name));
 
-      // Solo se renderiza el nombre en la interfaz gráfica
-      select.innerHTML = '<option value="">-- Selecciona tu Nombre y Apellido --</option>' +
-        students.map(st => `<option value="${st.id}">${st.name}</option>`).join('');
+      let optionsHTML = '<option value="">-- Selecciona tu Nombre --</option>';
+
+      students.forEach(st => {
+        // st.name es lo que VE el alumno ("Tomás Bruno Castañeda")
+        // st.id es el código privado que viaja internamente al backend
+        optionsHTML += `<option value="${st.id}">${st.name}</option>`;
+      });
+
+      select.innerHTML = optionsHTML;
     } else {
       enableManualEmailInput();
     }
   } catch (err) {
+    console.error("Error al cargar la lista de alumnos:", err);
     enableManualEmailInput();
   }
 }
