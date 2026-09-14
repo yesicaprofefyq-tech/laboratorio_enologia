@@ -280,26 +280,25 @@
     let currentSelectedStudent = null;
 
     // Cargar la lista de correos al iniciar la app
-    async function loadStudentEmails() {
-      const select = document.getElementById('studentEmail');
-      try {
-        const response = await fetch(WEBHOOK_URL);
-        const data = await response.json();
+   async function loadStudentEmails() {
+  const select = document.getElementById('studentEmail');
+  const courseId = "TU_ID_DE_CURSO_DE_CLASSROOM"; // Reemplaza por el ID numérico de tu curso
 
-        // Extraer emails únicos
-        const emails = [...new Set(data.map(item => item.email))].filter(Boolean);
+  try {
+    const response = await fetch(`${WEBHOOK_URL}?action=GET_STUDENTS&courseId=${courseId}`);
+    const emails = await response.json();
 
-        if (emails.length === 0) {
-          select.innerHTML = '<option value="">No hay alumnos matriculados disponibes</option>';
-          return;
-        }
-
-        select.innerHTML = '<option value="">-- Selecciona tu correo --</option>' +
-          emails.map(email => `<option value="${email}">${email}</option>`).join('');
-      } catch (err) {
-        select.innerHTML = '<option value="">Error al cargar alumnos</option>';
-      }
+    if (!emails || emails.length === 0) {
+      select.innerHTML = '<option value="">No se encontraron alumnos matriculados</option>';
+      return;
     }
+
+    select.innerHTML = '<option value="">-- Selecciona tu correo --</option>' +
+      emails.map(email => `<option value="${email}">${email}</option>`).join('');
+  } catch (err) {
+    select.innerHTML = '<option value="">Error al cargar alumnos</option>';
+  }
+}
 
     function togglePracticeFields() {
       const practice = document.getElementById('studentPractice').value;
