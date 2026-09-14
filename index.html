@@ -284,7 +284,7 @@ async function loadStudentEmails() {
   const select = document.getElementById('studentEmail');
   const courseId = "ODc3MDA3ODIzOTMw";
 
-  // Actualizar la etiqueta visible
+  // Cambiar el texto del campo visualmente
   const label = select.parentElement.querySelector('label');
   if (label) label.textContent = "Alumno / Nombre completo *";
 
@@ -295,15 +295,23 @@ async function loadStudentEmails() {
     const students = await response.json();
 
     if (Array.isArray(students) && students.length > 0) {
-      // Ordenar alfabéticamente por nombre
-      students.sort((a, b) => a.name.localeCompare(b.name));
+      // Ordenar alfabéticamente
+      students.sort((a, b) => {
+        const nameA = typeof a === 'object' ? (a.name || '') : String(a);
+        const nameB = typeof b === 'object' ? (b.name || '') : String(b);
+        return nameA.localeCompare(nameB);
+      });
 
       let optionsHTML = '<option value="">-- Selecciona tu Nombre --</option>';
 
       students.forEach(st => {
-        // st.name es lo que VE el alumno ("Tomás Bruno Castañeda")
-        // st.id es el código privado que viaja internamente al backend
-        optionsHTML += `<option value="${st.id}">${st.name}</option>`;
+        if (typeof st === 'object' && st !== null) {
+          // st.name muestra "Tomás Bruno Castañeda"
+          // st.id guarda el identificador privado
+          optionsHTML += `<option value="${st.id || st.email}">${st.name}</option>`;
+        } else {
+          optionsHTML += `<option value="${st}">${st}</option>`;
+        }
       });
 
       select.innerHTML = optionsHTML;
